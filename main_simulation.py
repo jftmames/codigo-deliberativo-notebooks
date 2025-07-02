@@ -2,6 +2,7 @@
 
 from deliberative_core.reasoning_tracker import ReasoningTracker
 from deliberative_core.navigator import Navigator
+from deliberative_core.eee import compute_eee
 import json
 
 # --- CONFIGURACIÓN ---
@@ -24,12 +25,22 @@ print(f"\n🔍 Hay {len(open_questions)} preguntas abiertas listas para ser expl
 for i, question in enumerate(open_questions, 1):
     print(f"   {i}. [{question.id[:6]}...] {question.contenido}")
 
-# (Opcional) Explorar una de las subpreguntas para crear una segunda capa de profundidad.
+# 5. (Opcional) Explorar una de las subpreguntas para crear una segunda capa de profundidad.
 if open_questions:
     node_to_explore_next = open_questions[0]
     navigator.explore_node(node_to_explore_next.id)
 
 
+# --- EVALUACIÓN EEE ---
+print("\n--- Evaluación Epistémica (EEE) ---")
+historial = tracker.export_history_as_list()
+metricas_eee = compute_eee(historial)
+
+print(f"Profundidad del árbol: {metricas_eee['profundidad']}")
+print(f"Pluralidad (ramificación promedio): {metricas_eee['pluralidad']:.2f}")
+print(f"Puntaje EEE (ponderado): {metricas_eee['eee_score_ponderado']:.2f}")
+
+
 # --- RESULTADO FINAL ---
 print("\n--- Historial Completo Final ---")
-print(json.dumps(tracker.export_history_as_list(), indent=2, ensure_ascii=False))
+print(json.dumps(historial, indent=2, ensure_ascii=False))
