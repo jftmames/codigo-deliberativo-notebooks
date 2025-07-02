@@ -1,12 +1,12 @@
 import os
+import json # Importamos la librería JSON
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# Cargar variables de entorno (la API key)
+# Cargar variables de entorno
 load_dotenv()
 
 # Inicializar el cliente de OpenAI
-# Se leerá la variable de entorno OPENAI_API_KEY automáticamente
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def generate_subquestions(
@@ -16,55 +16,51 @@ def generate_subquestions(
     user_profile: str = "consultor"
 ) -> list[str]:
     """
-    Genera subpreguntas exploratorias a partir de una pregunta principal y conceptos clave,
-    utilizando un modelo de lenguaje grande (LLM).
-
-    Args:
-        main_question: La pregunta central del proceso deliberativo.
-        concepts: Una lista de conceptos extraídos del contexto para guiar la generación.
-        domain: El dominio temático (e.g., "econ", "legal") para contextualizar.
-        user_profile: El perfil del usuario para ajustar el estilo de las preguntas.
-
-    Returns:
-        Una lista de subpreguntas generadas por el LLM.
+    Genera subpreguntas utilizando un LLM y espera una respuesta en formato JSON.
     """
+    # 🧠 Prompt mejorado: Pedimos explícitamente un objeto JSON.
     prompt_template = f"""
-    Eres un asistente experto en deliberación y análisis crítico en el dominio de '{domain}'.
-    Tu tarea es descomponer una pregunta principal en subpreguntas más pequeñas y manejables
-    para un perfil de '{user_profile}'.
+    Eres un asistente experto en análisis crítico en el dominio '{domain}'.
+    Tu tarea es descomponer una pregunta principal en 5 subpreguntas clave para un perfil de '{user_profile}'.
 
     Pregunta Principal: "{main_question}"
+    Conceptos Clave: {', '.join(concepts)}
 
-    Conceptos Clave a Considerar: {', '.join(concepts)}
-
-    Basado en la pregunta y los conceptos, genera 5 subpreguntas que ayuden a explorar el problema
-    desde diferentes ángulos (causas, consecuencias, soluciones, implicaciones).
-    Devuelve las preguntas como una lista de Python, usando comillas dobles para cada string.
-    Formato exacto de salida: ["Pregunta 1", "Pregunta 2", "Pregunta 3", "Pregunta 4", "Pregunta 5"]
+    Devuelve únicamente un objeto JSON que contenga una única clave "subpreguntas",
+    cuyo valor sea un array de 5 strings.
+    Ejemplo de formato de salida:
+    {{"subpreguntas": ["¿Cuál es el impacto a corto plazo?", "¿Qué riesgos existen?", ...]}}
     """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
+            # ✨ Forzamos a que la respuesta sea JSON
+            response_format={"type": "json_object"},
             messages=[
-                {"role": "system", "content": "Eres un asistente experto en análisis crítico."},
+                {"role": "system", "content": "Eres un asistente experto que siempre responde con JSON válido."},
                 {"role": "user", "content": prompt_template}
             ],
             temperature=0.7,
-            max_tokens=250
+            max_tokens=500
         )
 
         raw_response = response.choices[0].message.content
 
-        # Intenta parsear la respuesta del modelo de forma segura
-        subquestions = eval(raw_response.strip())
+        # 🔒 Usamos json.loads() en lugar de eval(). Es más seguro y robusto.
+        data = json.loads(raw_response)
+
+        subquestions = data.get("subpreguntas", []) # Usamos .get() para evitar errores si la clave no existe
 
         if isinstance(subquestions, list):
             return subquestions
         else:
-            print(f"ADVERTENCIA: La respuesta del LLM no fue una lista: {raw_response}")
+            print(f"ADVERTENCIA: La clave 'subpreguntas' no contenía una lista: {subquestions}")
             return []
 
+    except json.JSONDecodeError:
+        print(f"ERROR: La respuesta del LLM no era un JSON válido: {raw_response}")
+        return []
     except Exception as e:
         print(f"Error al conectar con el API de OpenAI o al procesar la respuesta: {e}")
         return []
