@@ -3,4 +3,5 @@ pytest
 openai
 python-dotenv
 pytest-mock
+pandas
 # A futuro podríamos añadir pydantic para validación de datos
