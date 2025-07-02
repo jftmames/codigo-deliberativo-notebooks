@@ -1,44 +1,35 @@
 # main_simulation.py
 
-from deliberative_core.inquiry_engine import generate_subquestions
-from deliberative_core.external_context import get_concepts
-from deliberative_core.reasoning_tracker import ReasoningTracker, ReasoningNode
+from deliberative_core.reasoning_tracker import ReasoningTracker
+from deliberative_core.navigator import Navigator
+import json
 
-# 1. Inicia el tracker
+# --- CONFIGURACIÓN ---
+# 1. Crear las instancias de nuestros módulos.
 tracker = ReasoningTracker()
+navigator = Navigator(tracker) # El navigator usa el tracker.
 
-# 2. El usuario plantea una pregunta principal
-main_question_text = "¿Cómo podemos usar la IA para fomentar la innovación educativa?"
-main_question_node = tracker.add_node(
-    ReasoningNode(
-        tipo="pregunta_principal",
-        origen="humano",
-        contenido=main_question_text,
-        estado="en_proceso"
-    )
+# --- EJECUCIÓN DEL FLUJO ---
+# 2. Iniciar la deliberación con una pregunta.
+main_node = navigator.start_deliberation(
+    "¿Cómo podemos usar la IA para fomentar la innovación educativa?"
 )
 
-# 3. El sistema busca conceptos clave
-concepts = get_concepts(main_question_text)
+# 3. Explorar la pregunta principal para generar la primera capa de subpreguntas.
+navigator.explore_node(main_node.id)
 
-# 4. El sistema genera subpreguntas usando la IA
-subquestion_texts = generate_subquestions(main_question_text, concepts)
+# 4. Ver qué preguntas quedan abiertas.
+open_questions = navigator.get_open_questions()
+print(f"\n🔍 Hay {len(open_questions)} preguntas abiertas listas para ser exploradas.")
+for i, question in enumerate(open_questions, 1):
+    print(f"   {i}. [{question.id[:6]}...] {question.contenido}")
 
-# 5. El sistema registra cada subpregunta en el tracker
-for sq_text in subquestion_texts:
-    tracker.add_node(
-        ReasoningNode(
-            tipo="subpregunta",
-            origen="ia_generativa",
-            contenido=sq_text,
-            parent_id=main_question_node.id  # Vinculamos a la pregunta principal
-        )
-    )
+# (Opcional) Explorar una de las subpreguntas para crear una segunda capa de profundidad.
+if open_questions:
+    node_to_explore_next = open_questions[0]
+    navigator.explore_node(node_to_explore_next.id)
 
-# 6. Revisa el estado final de la memoria
-print("\n--- Estado Final de la Memoria ---")
-print(tracker)
 
-print("\n--- Historial Completo Exportado ---")
-import json
-print(json.dumps(tracker.export_history_as_list(), indent=2))
+# --- RESULTADO FINAL ---
+print("\n--- Historial Completo Final ---")
+print(json.dumps(tracker.export_history_as_list(), indent=2, ensure_ascii=False))
