@@ -1,13 +1,12 @@
-import os
-import json # Importamos la librería JSON
+# deliberative_core/inquiry_engine.py
+
+import json
 from openai import OpenAI
-from dotenv import load_dotenv
+from .utils import load_api_key # <-- Importamos nuestra nueva función
 
-# Cargar variables de entorno
-load_dotenv()
-
-# Inicializar el cliente de OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Cargar la API Key y configurar el cliente una sola vez al iniciar el módulo.
+api_key = load_api_key()
+client = OpenAI(api_key=api_key)
 
 def generate_subquestions(
     main_question: str,
@@ -18,7 +17,6 @@ def generate_subquestions(
     """
     Genera subpreguntas utilizando un LLM y espera una respuesta en formato JSON.
     """
-    # 🧠 Prompt mejorado: Pedimos explícitamente un objeto JSON.
     prompt_template = f"""
     Eres un asistente experto en análisis crítico en el dominio '{domain}'.
     Tu tarea es descomponer una pregunta principal en 5 subpreguntas clave para un perfil de '{user_profile}'.
@@ -35,7 +33,6 @@ def generate_subquestions(
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
-            # ✨ Forzamos a que la respuesta sea JSON
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": "Eres un asistente experto que siempre responde con JSON válido."},
@@ -46,12 +43,9 @@ def generate_subquestions(
         )
 
         raw_response = response.choices[0].message.content
-
-        # 🔒 Usamos json.loads() en lugar de eval(). Es más seguro y robusto.
         data = json.loads(raw_response)
-
-        subquestions = data.get("subpreguntas", []) # Usamos .get() para evitar errores si la clave no existe
-
+        subquestions = data.get("subpreguntas", [])
+        
         if isinstance(subquestions, list):
             return subquestions
         else:
