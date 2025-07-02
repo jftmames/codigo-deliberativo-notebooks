@@ -37,13 +37,13 @@ class Navigator:
         if node_to_explore.estado != "abierta":
             print(f"INFO: El nodo {node_id} ya fue explorado o está cerrado. Estado: {node_to_explore.estado}")
             return
-            
+
         print(f"\n🧠 Explorando nodo {node_id}: '{node_to_explore.contenido}'")
         self.tracker.update_node_status(node_id, "en_proceso")
 
         # 1. Obtener conceptos (mock por ahora)
         concepts = get_concepts(node_to_explore.contenido)
-        print(f"   Concepts identificados: {concepts}")
+        print(f"   Conceptos identificados: {concepts}")
 
         # 2. Generar subpreguntas con la IA
         subquestion_texts = generate_subquestions(node_to_explore.contenido, concepts)
@@ -57,4 +57,12 @@ class Navigator:
                 contenido=sq_text,
                 parent_id=node_id
             )
-            self.tracker.
+            self.tracker.add_node(new_node)
+
+        # 4. Marcar el nodo padre como respondido
+        self.tracker.update_node_status(node_id, "respondida")
+        print(f"✅ Exploración del nodo {node_id} completada.")
+
+    def get_open_questions(self) -> list[ReasoningNode]:
+        """Devuelve una lista de todas las preguntas con estado 'abierta'."""
+        return [node for node in self.tracker.nodes.values() if node.estado == "abierta"]
