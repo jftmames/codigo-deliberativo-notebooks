@@ -1,3 +1,5 @@
 # requirements.txt
 pytest
+openai
+python-dotenv
 # A futuro podríamos añadir pydantic para validación de datos
