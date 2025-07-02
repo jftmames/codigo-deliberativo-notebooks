@@ -25,9 +25,10 @@ class Navigator:
         )
         return self.tracker.add_node(node)
 
-    def explore_node(self, node_id: str):
+    def explore_node(self, node_id: str, domain: str = "general", user_profile: str = "consultor"):
         """
-        Explora un nodo de pregunta, generando y registrando sus subpreguntas.
+        Explora un nodo de pregunta, generando y registrando sus subpreguntas,
+        considerando el dominio y el perfil del usuario.
         """
         node_to_explore = self.tracker.get_node(node_id)
         if not node_to_explore or node_to_explore.tipo not in ["pregunta_principal", "subpregunta"]:
@@ -37,19 +38,22 @@ class Navigator:
         if node_to_explore.estado != "abierta":
             print(f"INFO: El nodo {node_id} ya fue explorado o está cerrado. Estado: {node_to_explore.estado}")
             return
-
-        print(f"\n🧠 Explorando nodo {node_id}: '{node_to_explore.contenido}'")
+            
+        print(f"\n🧠 Explorando nodo {node_id} (Dominio: {domain}, Perfil: {user_profile}): '{node_to_explore.contenido}'")
         self.tracker.update_node_status(node_id, "en_proceso")
 
-        # 1. Obtener conceptos (mock por ahora)
         concepts = get_concepts(node_to_explore.contenido)
         print(f"   Conceptos identificados: {concepts}")
 
-        # 2. Generar subpreguntas con la IA
-        subquestion_texts = generate_subquestions(node_to_explore.contenido, concepts)
+        # Pasamos los parámetros al motor de indagación
+        subquestion_texts = generate_subquestions(
+            node_to_explore.contenido,
+            concepts,
+            domain=domain,
+            user_profile=user_profile
+        )
         print(f"   Subpreguntas generadas por la IA: {len(subquestion_texts)}")
 
-        # 3. Registrar las nuevas subpreguntas
         for sq_text in subquestion_texts:
             new_node = ReasoningNode(
                 tipo="subpregunta",
@@ -58,8 +62,7 @@ class Navigator:
                 parent_id=node_id
             )
             self.tracker.add_node(new_node)
-
-        # 4. Marcar el nodo padre como respondido
+        
         self.tracker.update_node_status(node_id, "respondida")
         print(f"✅ Exploración del nodo {node_id} completada.")
 
