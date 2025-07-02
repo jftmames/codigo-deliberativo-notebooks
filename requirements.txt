@@ -1,0 +1,3 @@
+# requirements.txt
+pytest
+# A futuro podríamos añadir pydantic para validación de datos
