@@ -2,9 +2,8 @@
 
 import json
 from openai import OpenAI
-from .utils import load_api_key # <-- Importamos nuestra nueva función
+from .utils import load_api_key
 
-# Cargar la API Key y configurar el cliente una sola vez al iniciar el módulo.
 api_key = load_api_key()
 client = OpenAI(api_key=api_key)
 
@@ -15,19 +14,29 @@ def generate_subquestions(
     user_profile: str = "consultor"
 ) -> list[str]:
     """
-    Genera subpreguntas utilizando un LLM y espera una respuesta en formato JSON.
+    Genera subpreguntas utilizando un LLM, adaptando el prompt al dominio
+    y perfil de usuario especificados.
     """
+    # --- Lógica de Expansión ---
+    # Personalizamos el rol del asistente de IA y la tarea según los parámetros.
+    system_prompt = f"Eres un asistente experto en análisis crítico en el dominio de '{domain}'."
+    
+    if user_profile == "docente":
+        task_description = f"Tu tarea es descomponer una pregunta principal en 5 subpreguntas que fomenten el pensamiento crítico y el aprendizaje profundo, adecuadas para un perfil de '{user_profile}'."
+    elif user_profile == "politica_publica":
+        task_description = f"Tu tarea es descomponer una pregunta principal en 5 subpreguntas que evalúen el impacto, la viabilidad y las consecuencias no deseadas, para un perfil de '{user_profile}'."
+    else: # Perfil "consultor" o por defecto
+        task_description = f"Tu tarea es descomponer una pregunta principal en 5 subpreguntas orientadas a la acción, la estrategia y la toma de decisiones, para un perfil de '{user_profile}'."
+    # --- Fin de la lógica de expansión ---
+
     prompt_template = f"""
-    Eres un asistente experto en análisis crítico en el dominio '{domain}'.
-    Tu tarea es descomponer una pregunta principal en 5 subpreguntas clave para un perfil de '{user_profile}'.
+    {task_description}
 
     Pregunta Principal: "{main_question}"
-    Conceptos Clave: {', '.join(concepts)}
+    Conceptos Clave a Considerar: {', '.join(concepts)}
 
     Devuelve únicamente un objeto JSON que contenga una única clave "subpreguntas",
     cuyo valor sea un array de 5 strings.
-    Ejemplo de formato de salida:
-    {{"subpreguntas": ["¿Cuál es el impacto a corto plazo?", "¿Qué riesgos existen?", ...]}}
     """
 
     try:
@@ -35,26 +44,16 @@ def generate_subquestions(
             model="gpt-4o",
             response_format={"type": "json_object"},
             messages=[
-                {"role": "system", "content": "Eres un asistente experto que siempre responde con JSON válido."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt_template}
             ],
             temperature=0.7,
             max_tokens=500
         )
-
         raw_response = response.choices[0].message.content
         data = json.loads(raw_response)
-        subquestions = data.get("subpreguntas", [])
-        
-        if isinstance(subquestions, list):
-            return subquestions
-        else:
-            print(f"ADVERTENCIA: La clave 'subpreguntas' no contenía una lista: {subquestions}")
-            return []
+        return data.get("subpreguntas", [])
 
-    except json.JSONDecodeError:
-        print(f"ERROR: La respuesta del LLM no era un JSON válido: {raw_response}")
-        return []
     except Exception as e:
         print(f"Error al conectar con el API de OpenAI o al procesar la respuesta: {e}")
         return []
